@@ -1,0 +1,188 @@
+---
+title: "Homework Lab B"
+author: "Kevin Ayala"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+Question 1
+Part A
+
+```{r}
+getwd()
+library(survival)
+vets.data<-read.table("/Users/kevinlorenzoayala/Downloads/vets.txt")
+head(vets.data)
+vets.km<-survfit(Surv(vets.data$V1,vets.data$V2)~1)
+plot(vets.km, xlab= "Time", ylab="Probability of Survival", conf.int=TRUE,
+     mark.time=TRUE, col = "Purple")
+```
+
+Question 1
+Part B
+```{r}
+quantile(vets.km, probs = c(.25,.5,.75))[1]
+#Grabbed the first row to grab the times associated with the quantiles 
+```
+
+
+
+Question 2 
+Part A
+
+```{r, results='hide'}
+library(dplyr)
+```
+
+```{r}
+lung.data<-read.table("/Users/kevinlorenzoayala/Downloads/lung.txt") 
+head(lung.data)
+lungs.km<-survfit(Surv(lung.data$time,lung.data$status)~1) 
+plot(lungs.km,xlab="Time in Days",ylab="Probability of Survival", conf.int=TRUE,
+     mark.time=TRUE, main="Kaplan-Meier Survival Function", col = "purple")
+```
+
+Question 2
+Part B
+```{r}
+max(lungs.km$time[lungs.km$time<150]) #Getting closest observed time to 150, which is 147
+summary(lungs.km,times = 147) 
+```
+
+Survival rate at this time is approx.   .793, 95% CI is (.742, .848)
+
+Question 2
+Part C 
+```{r}
+quantile(lungs.km, .5, conf.int = TRUE)  #the median survival time is 310 with a 95% CI of (285, 363)
+summary(lungs.km, time=310)
+```
+
+Question 2
+Part D
+```{r}
+#Filtering out desired gender into subsets
+lung.f <- filter(lung.data, sex == 2)
+head(lung.f) #subsetted females
+lung.m <- filter(lung.data, sex == 1)
+head(lung.m) #subsetted for the male case. 
+
+lungs.f.km<-survfit(Surv(lung.f$time,lung.f$status)~1) #female case
+lungs.m.km<-survfit(Surv(lung.m$time,lung.m$status)~1) #male case 
+
+plot(lungs.f.km,xlab="Time (In Days)",ylab="Probability of Survival", 
+     main="Survival Function for Females",conf.int=TRUE, mark.time=TRUE, col = "pink")
+
+plot(lungs.m.km,xlab="Time (In Days)",ylab="Probability of Survival", 
+     main ="Survival Function for Males",conf.int=TRUE, mark.time=TRUE, col = "blue")
+lung.data
+#plot of both gender survival functions on one graph for easy comparison
+lungs.genders<- survfit(Surv(time, status)~sex, data=lung.data)
+plot(lungs.genders, xlab="Time In Days", ylab="Probability of Survival", 
+     main="Gender Survival Function Comparison", col=c("blue","pink"),
+     conf.int = TRUE) 
+legend("topright",legend=c("Male","Female"), col=c("blue","pink"), pch=rep(19,2))
+```
+
+It seems that in general by the "Gender Survival Function Comparison" graph above, that females tend to have higher survival rates than men. This may be due to the stereotype of men having more addictive personality than females. Men and Women survival rate seem to be about the same at around 780 days since the 95% confidence intervals intersect, indicating possible same survival rate at that time and beyond.
+
+Question 2
+Part E
+```{r}
+
+quantile(lungs.f.km, probs=.5)
+summary(lungs.f.km, times<-426)
+
+quantile(lungs.m.km, probs = .5)
+summary(lungs.m.km, times<- 270)
+
+```
+The median of time for females is 426 with a confidence interval of (348,550), and the median of time for males is 270 with a confidence interval of (212, 310). The survival rates for females and males are .489 with a CI of (.415, .587) and the equivalent for males at the median, survival rate is .494 with a CI of (.415, .587).  Since these similar survival rates occur at around 14 months (426 days) for women and at around 8 months (270 days) for men, then it definitely seems that women indeed have stronger survival rates than men. However, does not tell the full story because men and women have possible similar survival rates (confidence interval for survival rates intersect) at a later time which in this case is around 780 days. (780 days is an eyeball estimate)
+
+Question 3
+Part A
+```{r}
+
+load("heroin.Rdt")
+heroin.km <- survfit(Surv(heroin$Time, heroin$Status)~1)
+plot(heroin.km, xlab = "Time (In Days at Clinic)", ylab="Probability of Survival", 
+     conf.int = TRUE, col= "purple", main = "Survival Function for Heroin")
+
+```
+
+Question 3
+Part B 
+```{r}
+
+m_j=heroin.km$n.event
+n_j=heroin.km$n.risk
+V_j=(m_j/(n_j*(n_j-m_j)))
+CV_j = cumsum(V_j)
+head(CV_j) #for the variance
+
+
+
+
+lowerboundlimit = log(heroin.km$surv) - 1.96*sqrt(CV_j)
+upperboundlimit = log(heroin.km$surv) + 1.96*sqrt(CV_j)
+
+plot(heroin.km$time,log(heroin.km$surv),lwd=2,type="l",ylim=c(-4,0),
+xlab="Time (In Days at Clinic)",col = "red", ylab=expression(log(hat(S)(t))))
+
+lines(heroin.km$time,lowerboundlimit,lty=2,col=2,lwd=2) #lowerbound Confidence Interval Graph
+lines(heroin.km$time,upperboundlimit,lty=2,col=2,lwd=2) #upperbound Confidence Interval Graph 
+
+```
+
+Question 3
+Part C 
+```{r}
+
+plot(heroin.km$time,heroin.km$surv,lwd=2,type="l", col="red",
+     xlab="Time (In Days at Clinic)",ylab=expression(hat(S)(t)))
+lines(heroin.km$time,exp(lowerboundlimit),lty=2,col=2,lwd=2)
+lines(heroin.km$time,exp(upperboundlimit),lty=2,col=2,lwd=2)
+
+
+```
+
+Question 3
+Part D
+
+
+The test statistic we will use:
+$T = \frac{log(\hat s(t)-log(p_0))}{sqrt(V_t)}=Z_{score}$
+
+```{r}
+max(heroin.km$time[heroin.km$time<365])
+at.one.year <- summary(heroin.km, times = 358)
+shat_358 <- at.one.year$surv
+shat_358
+at.one.year
+heroin.km$std.err[heroin.km$time == 358] # the denominator in the test statistic above 
+z <- (log(shat_358)-log(.5))/heroin.km$std.err[heroin.km$time == 358]
+z
+pnorm(-abs(z))
+
+```
+
+  For a one tail test, H_0:s(t) = .5,  H_a: s(t) < .5 at year one. Our p-value is .0002124677 in a one tailed test. We reject the null and conclude based on the evidence that at least 50% of patients are discharged within one year. 
+
+
+Quetion 3
+Part E
+
+```{r}
+quantile(heroin.km, probs = .7)
+summary(heroin.km, times=749)
+
+quantile(heroin.km, probs = .8)
+summary(heroin.km, times = 837)
+ 
+```
+
+Our confidence interval at the the 70th percentile, at time 749 is (.235, .379). In the 80th percentile, we have that the upperbound is NA or does not exist, this is becuase there is no upperbound confidence limit that ever falls below 20% at the 80th percentile time of 837. 
+

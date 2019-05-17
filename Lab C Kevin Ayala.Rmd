@@ -1,0 +1,180 @@
+---
+title: "PSTAT 175, LAB C"
+author: "Kevin Ayala"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: pdf_document
+---
+Question 1
+Part A 
+```{r}
+?kidney
+library(survival)
+data("kidney")
+kidney.km <- survfit(Surv(kidney$time, kidney$status)~1)
+plot(kidney.km, xlab="Time in Days Till Kidney Infection", ylab="Probability of Survival",
+     main="Kidney Kaplan-Meier Plot", col= "maroon") 
+```
+
+Part B
+```{r}
+log.rank.testkidney <- survdiff(Surv(kidney$time,kidney$status)~sex,data=kidney)
+log.rank.testkidney 
+```
+According to our log rank test, at an observed p value of .004, there is significant evidence to reject the null hypothesis of $H_0: S_1(t)=S_2(t)$, and conlude the alternative $H_a: S_1(t)\neq S_2(t)$. This means that the survival rates till kideny infection is different for women and men.
+
+Part C
+```{r}
+kidney.km.sex = survfit(Surv(kidney$time,kidney$status)~sex,data=kidney)
+plot(kidney.km.sex, xlab="Time in Days for Kidney Patients", 
+     ylab="Probability of Survival",
+main="Kidney Gender Survival Function Comparison",
+col=c("green","purple"))
+legend("top",legend=c("Male","Female"), col=c("green","purple"), pch=rep(19,2))
+```
+
+Part D
+```{r}
+kidney.coxph <- coxph(Surv(kidney$time,kidney$status)~sex,data=kidney)
+kidney.coxph
+exp(confint(kidney.coxph,level=.95))
+```
+We observe a 95% confidence interval for the estimate parameter which is between (.2419, .7738) for sex. Our hazard proportion by the cox proportion regression model is .433, this means that the survival rate is decreasing as time in days moves along for both sexes. In  a month, the survival rate till a kidney infection has decreased and the patient will likely suffer a kidney infection compared till today.  
+
+Part E
+```{r}
+library("dplyr")
+kidney.male <- filter(kidney, sex == 1)
+kidney.male.km<-survfit(Surv(kidney.male$time,kidney.male$status)~1)
+summary(kidney.km.sex)
+```
+
+Observation 42 (obs 42 is under sex =1 when time is 562) seems to have a survival hazard rate of 0% nor a confidence interval for his survival rate, this suggests he is an outlier. If we remeove him for the kaplan meier then the model is free from a random subject effect. 
+
+Question 2
+Part A
+```{r}
+library(survival)
+data("mgus")
+log.rank.testmgus <- coxph(Surv(futime,death)~sex,data=mgus)
+log.rank.testmgus 
+
+
+```
+We observe a pvalue of .01 from our log rank test, therefore we have significant evidence to reject the null hypothes of $H_0: S_1(t)=S_2(t)$ for the group of men and women, we thus conclude that the survival rates for both groups of sex to be different. 
+
+Part B
+```{r}
+
+
+coxphtestmgus2 <- coxph(Surv(futime,death)~age+alb+creat+hgb+
+                              mspike+sex,data=mgus) 
+coxphtestmgus3 <- coxph(Surv(futime,death)~age+alb+creat+hgb+
+                              mspike,data=mgus) 
+logliklihoodtest <- 2*(coxphtestmgus2$loglik[2]-coxphtestmgus3$loglik[2])
+logliklihoodtest
+
+
+pchisq(logliklihoodtest,df=1,lower.tail=FALSE)
+#loglikelihood test lets us use chisquare for p-value
+
+```
+
+We find evidence from the cox proportional hazard model above that the survival ratio between men and women is not different when we conduct a loglikelyhood test with p-value of .2113, thus we fail to reject the null hypothesis of $H_0: S_1(t)=S_2(t)$ between sexes. 
+
+Part C. 
+
+We explain that the two different answers in part a and b are becuase of the fact that the cox proportional hazard model can use multiple predictors and is a semi-parametric test. Because we use multiple predictors, we take into account continous data as well as binary. For the Kaplan-Meier approach, we have to acknowledge that this approach is a non-parametric test and does not account for covariates. 
+
+
+
+Part D. 
+```{r}
+library(car)
+Anova(coxphtestmgus2)
+```
+
+We should use the covariates age and creat, based on a analysis of variance. We keep only these covariates because at a 95% level of significance, we find that only these two covariates play a significant role in the cox model. We reject all covariates with p-value's greater than .05 since they play no significant role. 
+
+
+Question 3
+
+Part A
+```{r}
+
+#this code imputates NA values under pctime with corresponding futime. 
+mgus$pctime[is.na(mgus$pctime)]<- as.character(mgus$futime[is.na(mgus$pctime)])
+
+newmgus<-survfit(Surv(as.numeric(mgus$futime,mgus$pctime,death))~1, data=mgus)
+plot(newmgus, main="Kaplan-Meier Estimate with Imputated pctime", 
+     xlab="Time in Days", ylab="Probability of Survival" ,col="blue")
+```
+
+
+Part B
+```{r}
+
+mgus.coxph <- coxph(Surv(mgus$futime,mgus$death)~mspike,data=mgus) 
+mgus.coxph 
+```
+
+We observe a p-value of .3 for the cox model, we thus fail to reject the null hypothesis of 
+$H_0: S_1(t)=S_2(t)$ for mspike groups. Thus we conclude that mspike does not have an effect on time till a further disease is present. 
+
+
+Part C
+```{r}
+
+mgus.coxph2 <- coxph(Surv(mgus$futime,mgus$death)~sex+age+alb+creat+
+                       hgb+mspike,data=mgus)
+mgus.coxph2
+mgus.coxph3 <- coxph(Surv(mgus$futime,mgus$death)~sex+age+alb+creat+
+                       hgb, data=mgus)
+mgus.coxph3
+
+loglikelyhood2 <- 2*(mgus.coxph2$loglik[2]-mgus.coxph3$loglik[2])
+loglikelyhood2
+
+pchisq(loglikelyhood2,df=1,lower.tail=FALSE)
+
+```
+
+Considering the added covariates on mspike, we observe a p-value of .957 after doing a loglikehood test which is approximately a chi squarte test with degrees of freedom =1. With our high p-value, we find no evidence to reject the null hypothesis and conclude $H_0: S_1(t)=S_2(t)$. This furhter backs up our conclusion from part b. 
+
+Question 4
+
+Part A
+```{r}
+ 
+mgus.omega<- survfit(Surv(futime,death)~sex,data=mgus)
+plot(mgus.omega, xlab="Time in Days", ylab="-loglog(S(t))",
+main="-loglog(S(t)) Graph", col=c("orange","red"), fun="cloglog")
+legend("top",legend=c("Male","Female"), col=c("orange","red"), pch=rep(19,2))
+```
+
+The model is appropriate since both graphs seem nice and parallel to each other, indicating the proportional hazard assumption is appropriate. 
+
+Part B
+```{r}
+
+female.mgus <- filter(mgus, sex=="female")
+female.mgus.coxph <- coxph(Surv(female.mgus$futime,female.mgus$death)~1) 
+female.mgus.coxph
+female.mgus.km <- survfit(Surv(mgus$futime, mgus$death)~1,data=mgus)
+plot(female.mgus.km, conf.int=FALSE, col="purple",
+     xlab = "Time in Days from Diagnosis to Last Follow-Up", 
+     ylab = "Probability of Survival for Female Subjects",
+     main= "KM and CoxPH Comparison for Female Subjects")
+lines(survfit(female.mgus.coxph), conf.int=FALSE, col="blue")
+legend("top",legend=c("KM","COXPH"), col=c("purple","blue"),pch=rep(19,2))
+
+
+```
+
+Yes the model seems to be appropriate since the KM estimate and Cox Proportional Hazard Model seem to be similar. If we were to plot confidence interval, then we woould see crossing confidence intervals suggesting survival rates are possibly similar under Cox Model and Kaplan Meier estimate. 
+
+```{r}
+cox.zph(log.rank.testmgus, global = FALSE)
+
+
+```
+Yes we are justified in using the proportional hazard model of the effect of sex, we see under this test that the sex covariate has a p-value greater than .05. This means that the varaible is not time dependent.

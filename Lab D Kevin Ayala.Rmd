@@ -1,0 +1,219 @@
+---
+title: "175 LAB D"
+author: "Kevin Ayala"
+date: "11/29/2018"
+output: pdf_document
+---
+Question 1 
+Part A.
+```{r}
+library(survival)
+library(KMsurv)
+
+getwd()
+hern.data<-read.table("/Users/kevinlorenzoayala/Downloads/hern.txt")
+head(hern.data)
+
+fittedmodel1 = coxph(Surv(Time,Status)~Prison,data=hern.data)
+summary(fittedmodel1)
+
+```
+
+The test reveals that we should fail to reject null with a p-value of .3. There exists no difference between both prisons under the null hypothesis. We can conclude both prisons share the same hazard rate.
+
+Part B.
+
+```{r}
+fittedmodel2 <- coxph(Surv(Time, Status)~Prison+Clinic, data = hern.data)
+fittedmodel3 <- coxph(Surv(Time, Status)~Clinic, data = hern.data)
+
+
+logratiotest<- 2*(fittedmodel2$loglik[2]-fittedmodel3$loglik[2])
+pchisq(logratiotest, df=1, lower.tail=FALSE) #df is 1 due to groups
+
+
+
+```
+
+We use model in question 1 to control for clinic for the log liklihood test. Under the log likelihood test, we observe a pvalue of .09. We fail to reject null based on this. We conclude that the effect of prison is not affected by the confounding variable clinic. 
+
+Part C.
+
+```{r}
+fittedmodel3 <- coxph(Surv(Time,Status)~Clinic,data=hern.data)
+
+plot(survfit(fittedmodel3, newdata=data.frame(Clinic=factor(c("1","2")))),
+fun="cloglog",col= c("red","blue"),xlab="Time",ylab="log(-log(S(t)))",lwd=2, main =
+  "Checking PH Hazard Assumption Between Clinics")
+legend("top", legend = c("Clinic Type 1", "Clinic Type 2"), col = c("red","blue"), pch=rep(15,4))
+
+``` 
+
+We observe both loglog plots of both clinics are parallel to each and do not seem like they will cross, therefore on a visual check, we conclude the Cox PH assumption is accepted for the effect of clinics.
+
+Part D.
+
+```{r}
+stratisfiedmodel1 = coxph(Surv(Time,Status)~Prison+strata(Clinic), data=hern.data)
+summary(stratisfiedmodel1)
+
+```
+
+We should conlcude that the clinics share the same hazard ratios since the pvalue is .05, since the pvalue is not greater than our alpha level of .05 we reject the null hypothesis. The clinic variable when stratisfied is significant, meaning the stratisfication takes into account different groups under the clinic. 
+
+Part E.
+
+```{r}
+#Part E
+
+fittedmodelinter <- coxph(Surv(Time, Status)~Prison*strata(Clinic), data = hern.data)
+
+lrt = 2*(fittedmodelinter$loglik[2]-stratisfiedmodel1$loglik[2])
+pchisq(lrt,df=1,lower.tail = FALSE)
+
+#for anova test we fit new cox model with prison and clinic interaction
+anova(stratisfiedmodel1, fittedmodelinter)
+#anova test confirms lrt outcome 
+
+```
+
+
+We fail to reject the null with an observed p-value of .3967. We conclude the interaction term is not significant. Thus we dont add the interaction. We used an anova test to confirm our likelyhood result.. 
+
+Problem 2
+Part A.
+```{r}
+#a
+getwd()
+retire.data<-read.table("/Users/kevinlorenzoayala/Downloads/Retire.txt", header = TRUE)
+head(retire.data)
+
+coxphgender <- coxph(Surv(time,death)~gender, data=retire.data)
+summary(coxphgender)
+
+```
+We observe a likelyhood ration test of 5.78 with a corresponding p-value of .02, this means that we reject the null hypothesis that there is no difference between both gender and thus conclude that there is a difference in the hazard functions for both groups based on the data. 
+
+
+Part B.
+
+```{r}
+
+coxphageentry<- coxph(Surv(time,death)~gender+ageentry, data=retire.data)
+anova(coxphgender, coxphageentry)
+
+#
+logratiotest2<- 2*(coxphageentry$loglik[2]-coxphgender$loglik[2])
+logratiotest2
+pchisq(logratiotest2, df=1, lower.tail=FALSE)
+
+
+```
+our log likilyhood ratio test is given by the anova when we take 
+the difference of log like which is the difference of the log likelyhood between each model. Thus to get the log likelyhood we do 2*(difference of log likelyhood for each model) which results in 
+2*(-950.15 + 972) which gives us 43.7. We confirm this with the code under logratiotest2. 
+
+pvalue of 9.318827e-10, we reject null hypothesis and conclude age entry and gender plays an interaction. We conclude on top of having gender in data, we should keep ageentry in the final model.
+
+
+
+
+Part C.
+
+```{r}
+
+coxgenderretire<- coxph(Surv(time,death) ~ age*gender, data=retire.data)
+summary(coxgenderretire)
+anova(coxphgender , coxgenderretire)
+
+```
+
+We observe a pvalue of 0.001, therefore we find evidence that age and gender play an interaction roll. We confirm this result with the anova code. We infer that although age and gender play an interaction, we find that due to occam's razor that ageentry might be better since it has a lower p-value and is more significant than age.
+
+Part D.
+
+```{r}
+gender.survival <- coxph(Surv(time,death)~gender, data= retire.data)
+plot(survfit(gender.survival, newdata=data.frame(gender=factor(c("1","2")))),
+fun="cloglog",col= c("blue","purple"),xlab="Time",ylab="log(-log(S(t)))",lwd=2, main =
+  "Checking PH Hazard Assumption Between Genders")
+legend("top", legend = c("Male", "Female"), col = c("blue","purple"), pch=rep(15,4))
+
+```
+
+
+Yes, we find our proportional hazard assumption as met, we find it appropriate that the model assumes this assumption. We come to this conclusion because the log log graph indicates no interaction between gender. 
+
+
+
+Part E.
+
+We want to use ageentry because the p-value is more significant than age alone and since we don't want to have a overcomplicated model with two differnt age variables, by law of parsimony we should use ageentry as it is just more simpler. 
+
+Question 3
+Part A .
+```{r}
+library(tidyverse)
+#a
+head(retire.data)
+retire.data$time[retire.data$time == 0] <- .1 
+#this code adds time value for time 0 observations so that the code for survsplit works
+min(retire.data$time)
+
+newfit = survSplit(Surv(time, death) ~., data=retire.data , cut = c(48),episode ="timegroup", id ="sub.id")
+newfit[1:10,c("sub.id","tstart","time","death","timegroup","age","gender")]
+
+
+```
+
+
+Part B.
+
+```{r}
+
+newmodelfit2 = coxph(Surv(tstart,time,death)~gender+ageentry, data=newfit)
+newmodelfit2
+
+newmodelfit3 = coxph(Surv(tstart,time,death)~gender:strata(timegroup)+ageentry,data=newfit)
+
+
+anova(newmodelfit2,newmodelfit3)
+
+logratiotest3<- 2*(newmodelfit3$loglik[2]-newmodelfit2$loglik[2])
+logratiotest3
+pchisq(logratiotest3, df=1, lower.tail=FALSE)
+
+```
+
+We fail to reject the null hypothesis and conclude that gender is not significant in this model. 
+
+Part C.
+
+```{r}
+
+#c
+newfitmen <-filter(retire.data, time < 48 & gender ==1)
+head(newfitmen)
+coxfitmen <- coxph(Surv(time, death)~ageentry, data = newfitmen)
+summary(coxfitmen)
+exp(confint(coxfitmen,level=.95))
+
+
+newfitmen2 <-filter(retire.data, time > 48 & gender ==1)
+head(newfitmen2)
+coxfitmen2 <- coxph(Surv(time, death)~ageentry, data =newfitmen2)
+summary(coxfitmen2)
+
+```
+
+
+For time less than 48 months we observe that the hazard ratio for men is between an interval of (.994, 1.008)
+
+
+We observe for time after 48 months and males, that the hazard ratios lies between the interval (.9992, 1.012). 
+
+
+Part D. 
+We find this is a similar ratio to the group of men who have been at the facility less than 48 months. Since the intervals overlap and contain the possibility of the true hazard ratio being 1, we can conclude there is no differnce between the change in effect of gender, before and after 4 years. 
+
+
